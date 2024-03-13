@@ -227,11 +227,14 @@ source_new_union AS (
 earliest_hk_over_all_sources AS (
 {# Deduplicate the unionized records again to only insert the earliest one. #}
 
-    SELECT
-        lcte.*
-    FROM {{ ns.last_cte }} AS lcte
-
-    QUALIFY ROW_NUMBER() OVER (PARTITION BY {{ link_hashkey }} ORDER BY {{ src_ldts }}) = 1
+    SELECT *
+    FROM (
+            SELECT
+                lcte.*,
+                ROW_NUMBER() OVER (PARTITION BY {{ link_hashkey }} ORDER BY {{ src_ldts }}) AS latest
+            FROM {{ ns.last_cte }} lcte
+            )
+    WHERE latest =1
 
     {%- set ns.last_cte = 'earliest_hk_over_all_sources' -%}
 
