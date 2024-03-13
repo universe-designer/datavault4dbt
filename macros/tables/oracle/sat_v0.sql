@@ -14,7 +14,11 @@
     {% set ns.hdiff_alias = src_hashdiff  %}
 {%- endif -%}
 
+
+{%- set ns.hdiff_alias = var('datavault4dbt.hdiff_alias', 'HDIFF') -%}
+
 {%- set source_cols = datavault4dbt.expand_column_list(columns=[src_rsrc, src_ldts, src_payload]) -%}
+
 
 {%- set source_relation = ref(source_model) -%}
 
