@@ -2,7 +2,7 @@
     {% if execute %}
 
 
-SELECT 'ALTER TABLE '||OWNER||'.'||TABLE_NAME||' {{switch}} CONSTRAINT '|| CONSTRAINT_NAME||';'
+SELECT 'ALTER TABLE '||OWNER||'.'||TABLE_NAME||' {{switch}} CONSTRAINT '|| CONSTRAINT_NAME||';' AS SQL_COMMAND
 FROM all_constraints
 WHERE CONSTRAINT_TYPE = 'R' AND UPPER(owner||'.'||table_name)  IN (
 
