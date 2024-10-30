@@ -139,9 +139,10 @@ WITH
 
 
 
-                INNER JOIN max_ldts_per_rsrc_static_in_target max
+                LEFT JOIN max_ldts_per_rsrc_static_in_target max
                     ON max.rsrc_static = '{{ rsrc_static }}'
                 WHERE src.{{ src_ldts }} > max.max_ldts
+                   OR max.rsrc_static IS NULL
 
             {%- if not loop.last %}
                 UNION ALL

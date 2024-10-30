@@ -3,6 +3,8 @@
     applied 'on top' of the staging layer, and is either connected to a Hub or a Link. On top of each version 0 satellite, a version
     1 satellite should be created, using the sat_v1 macro. This extends the v0 satellite by a virtually calculated load end date.
     Each satellite can only be loaded by one source model, since we typically recommend a satellite split by source system.
+    This version is meant specially for views that can be used to load tables in one on one mappings. The code is identical with the
+    incremental materialization.
 
     Features:
         - Can handle multiple updates per batch, without losing intermediate changes. therefore initial loading is supported.

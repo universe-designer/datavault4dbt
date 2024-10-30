@@ -315,16 +315,23 @@
     {%- set all_null = [] -%}
 
     {%- if is_hashdiff  and datavault4dbt.is_something(multi_active_key) -%}
-        {%- set std_dict = fromjson(datavault4dbt.multi_active_concattenated_standardise(case_sensitive=hashdiff_input_case_sensitive, hash_alg=hash_alg, datatype=hash_dtype, alias=alias, zero_key=unknown_key, multi_active_key=multi_active_key, main_hashkey_column=main_hashkey_column)) -%}
+        {%- set std_dict = fromjson(datavault4dbt.multi_active_concattenated_standardise(case_sensitive=hashdiff_input_case_sensitive, hash_alg=hash_alg, datatype=hash_dtype, alias=none, zero_key=unknown_key, multi_active_key=multi_active_key, main_hashkey_column=main_hashkey_column)) -%}
     {%- elif is_hashdiff -%}
-        {%- set std_dict = fromjson(datavault4dbt.concattenated_standardise(case_sensitive=hashdiff_input_case_sensitive, hash_alg=hash_alg, datatype=hash_dtype, alias=alias, zero_key=unknown_key,is_hashdiff=is_hashdiff,rtrim_hashdiff=rtrim_hashdiff)) -%}
+        {%- set std_dict = fromjson(datavault4dbt.concattenated_standardise(case_sensitive=hashdiff_input_case_sensitive, hash_alg=hash_alg, datatype=hash_dtype, alias=none, zero_key=unknown_key,is_hashdiff=is_hashdiff,rtrim_hashdiff=rtrim_hashdiff)) -%}
     {%- else -%}
-        {%- set std_dict = fromjson(datavault4dbt.concattenated_standardise(case_sensitive=hashkey_input_case_sensitive, hash_alg=hash_alg, datatype=hash_dtype, alias=alias, zero_key=unknown_key,is_hashdiff=is_hashdiff,rtrim_hashdiff=rtrim_hashdiff)) -%}
+        {%- set std_dict = fromjson(datavault4dbt.concattenated_standardise(case_sensitive=hashkey_input_case_sensitive, hash_alg=hash_alg, datatype=hash_dtype, alias=none, zero_key=unknown_key,is_hashdiff=is_hashdiff,rtrim_hashdiff=rtrim_hashdiff)) -%}
 
     {%- endif -%}
 
     {%- set standardise_prefix = std_dict['standardise_prefix'] -%}
     {%- set standardise_suffix = std_dict['standardise_suffix'] -%}
+
+    {%- set zero_key = datavault4dbt.as_constant(column_str=unknown_key) -%}
+    {%- set decode_1 = "DECODE(" -%}
+    {%- set decode_2 = ", NULL, {}, CAST({}(".format(zero_key, hash_alg) -%}
+    {%- set decode_3 = ") AS VARCHAR2(40))) AS {}".format(alias) -%}
+
+    {{  decode_1  -}}
 
     {{" "~ standardise_prefix }}
 
@@ -338,7 +345,10 @@
             {%- set column_str = datavault4dbt.as_constant(column) -%}
         {%- endif -%}
 
-        {{- "\n NULLIF(({}), '{}')".format(attribute_standardise | replace('[EXPRESSION]', column_str) | replace('[QUOTE]', quote) | replace('[NULL_PLACEHOLDER_STRING]', null_placeholder_string), null_placeholder_string) | indent(4) -}}
+
+
+        {{- "\n DECODE({}, NULL, '{}', {})".format(column_str, null_placeholder_string, attribute_standardise | replace('[EXPRESSION]', column_str) | replace('[QUOTE]', quote) | replace('[NULL_PLACEHOLDER_STRING]', null_placeholder_string)) | indent(4) -}}
+
 
 
         {{- "{}".format(concat_string) if not loop.last -}}
@@ -350,10 +360,56 @@
 
         {%- else -%}
 
+            {%- do all_null.append("'") -%}
             {%- do all_null.append(concat_string) -%}
+            {%- do all_null.append("'") -%}
 
         {%- endif -%}
 
     {%- endfor -%}
+
+    {{  decode_2  -}}
+
+        {{" "~ standardise_prefix }}
+
+    {%- for column in columns -%}
+
+        {%- do all_null.append(null_placeholder_string) -%}
+
+        {%- if '.' in column %}
+            {% set column_str = column -%}
+        {%- else -%}
+            {%- set column_str = datavault4dbt.as_constant(column) -%}
+        {%- endif -%}
+
+
+
+        {{- "\n DECODE({}, NULL, '{}', {})".format(column_str, null_placeholder_string, attribute_standardise | replace('[EXPRESSION]', column_str) | replace('[QUOTE]', quote) | replace('[NULL_PLACEHOLDER_STRING]', null_placeholder_string)) | indent(4) -}}
+
+
+
+        {{- "{}".format(concat_string) if not loop.last -}}
+
+
+        {%- if loop.last -%}
+
+            {{ standardise_suffix | replace('[ALL_NULL]', all_null | join("")) | indent(4) }}
+
+        {%- else -%}
+
+            {%- do all_null.append("'") -%}
+            {%- do all_null.append(concat_string) -%}
+            {%- do all_null.append("'") -%}
+
+        {%- endif -%}
+
+    {%- endfor -%}
+
+
+
+    {{  decode_3  -}}
+
+
+
 
 {%- endmacro -%}

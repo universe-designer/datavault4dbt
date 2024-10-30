@@ -4,6 +4,8 @@
     1 multi-active satellite should be created, using the ma_sat_v1 macro. This extends the v0 satellite by a virtually calculated load end date.
     Each satellite can only be loaded by one source model, since we typically recommend a satellite split by source system.
     If a stage model is defined as multi-active, all satellites out of that stage model need to be implemented as multi-active satellites.
+    This version is meant specially for views that can be used to load tables in one on one mappings. The code is identical with the
+    incremental materialization.
 
     Features:
         - Can handle multiple updates per batch, without losing intermediate changes. therefore initial loading is supported.
@@ -71,7 +73,7 @@
     {%- set src_ldts = datavault4dbt.replace_standard(src_ldts, 'datavault4dbt.ldts_alias', 'ldts') -%}
     {%- set src_rsrc = datavault4dbt.replace_standard(src_rsrc, 'datavault4dbt.rsrc_alias', 'rsrc') -%}
 
-    {{ adapter.dispatch('ma_sat_v0', 'datavault4dbt')(parent_hashkey=parent_hashkey,
+    {{ adapter.dispatch('ma_sat_v0_view', 'datavault4dbt')(parent_hashkey=parent_hashkey,
                                          src_hashdiff=src_hashdiff,
                                          src_ma_key=src_ma_key,
                                          src_payload=src_payload,

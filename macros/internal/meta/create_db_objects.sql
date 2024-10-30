@@ -8,6 +8,7 @@ SET DDL STORAGE OFF;
 SET DDL TABLESPACE OFF;
 SET DDL SPECIFICATION OFF;
 SET DDL REF_CONSTRAINTS ON;
+SET DDL CONSTRAINTS ON;
       {% for node in graph.nodes.values()
          | selectattr("resource_type", "equalto", "model") %}
         {% if not node.name.startswith("META_") %}

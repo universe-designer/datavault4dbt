@@ -1,4 +1,4 @@
-{%- macro oracle__eff_sat_link_v0(link_hashkey, driving_key, secondary_fks, src_ldts, src_rsrc, source_model) -%}
+{%- macro oracle__eff_sat_link_v0_view(link_hashkey, driving_key, secondary_fks, src_ldts, src_rsrc, source_model) -%}
 
 {{- datavault4dbt.check_required_parameters(link_hashkey=link_hashkey, driving_key=driving_key, secondary_fks=secondary_fks,
                                        src_ldts=src_ldts, src_rsrc=src_rsrc,
@@ -33,7 +33,7 @@ stage AS
     WHERE appearance = 1
 ),
 
-{%- if is_incremental() %}
+
 
 {#
     Get the latest record for each driving key, already existing in eff_sat and included in incoming batch. Only applied if incremental.
@@ -46,18 +46,17 @@ latest_record AS
         SELECT
             {{ datavault4dbt.prefix(source_cols, 'current_records') }},
             ROW_NUMBER() OVER (PARTITION BY {{ datavault4dbt.prefix([driving_key], 'current_records') }} ORDER BY {{ datavault4dbt.prefix([src_ldts], 'current_records') }} DESC) AS rn
-        FROM {{ this }} current_records
+        FROM {{ this.schema +"."+ this.identifier[:-3]  }} current_records
         INNER JOIN (
-                        SELECT DISTINCT
-                            {{ datavault4dbt.prefix([driving_key], 'stage') }}
-                        FROM stage
-                    ) source_records
+            SELECT DISTINCT
+                {{ datavault4dbt.prefix([driving_key], 'stage') }}
+            FROM stage
+        ) source_records
             ON {{ datavault4dbt.multikey(driving_key, prefix=['current_records', 'source_records'], condition='=') }}
-        WHERE current_records.is_active = 1
         )
     WHERE rn = 1
 ),
-{%- endif %}
+
 
 {#
     Select only incoming records from the stage, that are newer than the latest record in the eff_sat, or when it does not exist yet.
@@ -68,17 +67,17 @@ stage_new AS
     SELECT
         {{ datavault4dbt.prefix(source_cols, 'stage') }},
         LEAD({{ datavault4dbt.prefix([src_ldts], 'stage') }}) OVER (PARTITION BY {{ datavault4dbt.prefix([driving_key], 'stage') }} ORDER BY {{ datavault4dbt.prefix([src_ldts], 'stage') }}) AS src_ldts_lead,
-        ROW_NUMBER() OVER (PARTITION BY {{ datavault4dbt.prefix([driving_key], 'stage') }} ORDER BY {{ datavault4dbt.prefix([src_ldts], 'stage') }} DESC) as stage_rank
+        ROW_NUMBER() OVER (PARTITION BY {{ datavault4dbt.prefix([driving_key], 'stage') }} ORDER BY {{ datavault4dbt.prefix([src_ldts], 'stage') }}) as stage_rank
     FROM stage
-    {%- if is_incremental() %}
+
     LEFT JOIN latest_record
         ON {{ datavault4dbt.multikey(driving_key, prefix=['stage', 'latest_record'], condition='=') }}
     WHERE {{ datavault4dbt.prefix([src_ldts], 'stage') }} > {{ datavault4dbt.prefix([src_ldts], 'latest_record') }}
         OR {{ datavault4dbt.prefix([src_ldts], 'latest_record') }} IS NULL
-    {%- endif %}
+
 ),
 
-{%- if is_incremental() -%}
+
 
 {#
     Disable all latest records in the eff_sat, when there is a new relationship for that driving key in the stage.
@@ -104,7 +103,7 @@ deactivated_existing AS
 
 ),
 
-{%- endif %}
+
 
 {#
     Activate all rows that have a different relationship for an existing driving key OR where the driving key is not yet existing in the eff_sat
@@ -119,13 +118,13 @@ activated_new_records AS
         {{ datavault4dbt.prefix([src_ldts], 'stage_new') }} AS {{ src_ldts }},
         1 AS is_active
     FROM stage_new
-    {%- if is_incremental() %}
+
     LEFT JOIN latest_record
         ON {{ datavault4dbt.multikey(driving_key, prefix=['stage_new', 'latest_record'], condition='=') }}
-    WHERE ({{ datavault4dbt.prefix([link_hashkey], 'stage_new') }} != {{ datavault4dbt.prefix([link_hashkey], 'latest_record') }}
-        OR {{ datavault4dbt.prefix([src_ldts], 'latest_record') }} IS NULL)
-        AND stage_new.stage_rank = 1
-    {%- endif %}
+    WHERE {{ datavault4dbt.prefix([link_hashkey], 'stage_new') }} != {{ datavault4dbt.prefix([link_hashkey], 'latest_record') }}
+        OR {{ datavault4dbt.prefix([src_ldts], 'latest_record') }} IS NULL
+        OR stage_new.stage_rank != 1
+
 
 ),
 
@@ -143,34 +142,13 @@ deactivated_intermediates AS
                 0 AS is_active,
                 ROW_NUMBER() OVER (PARTITION BY {{ datavault4dbt.prefix([driving_key], 'stage_new') }} ORDER BY {{ datavault4dbt.prefix([src_ldts], 'stage_new') }} DESC) AS rn
             FROM stage_new
-            {%- if is_incremental() %}
+
             LEFT JOIN latest_record
                 ON {{ datavault4dbt.multikey(driving_key, prefix=['stage_new', 'latest_record'], condition='=') }}
             WHERE {{ datavault4dbt.prefix([link_hashkey], 'stage_new') }} != {{ datavault4dbt.prefix([link_hashkey], 'latest_record') }}
                 OR {{ datavault4dbt.prefix([src_ldts], 'latest_record') }} IS NULL
+                OR stage_new.stage_rank != 1
 
-            {%- endif %}
-        ) stage_new
-    WHERE rn != 1
-),
-
-activated_intermediates AS
-(
-    SELECT {{ datavault4dbt.prefix(union_cols, 'stage_new') }}, src_ldts, is_active
-    FROM (
-            SELECT
-                {{ datavault4dbt.prefix(union_cols, 'stage_new') }},
-                stage_new.cdwh_load_ts AS src_ldts,
-                1 AS is_active,
-                ROW_NUMBER() OVER (PARTITION BY {{ datavault4dbt.prefix([driving_key], 'stage_new') }} ORDER BY {{ datavault4dbt.prefix([src_ldts], 'stage_new') }} DESC) AS rn
-            FROM stage_new
-            {%- if is_incremental() %}
-            LEFT JOIN latest_record
-                ON {{ datavault4dbt.multikey(driving_key, prefix=['stage_new', 'latest_record'], condition='=') }}
-            WHERE {{ datavault4dbt.prefix([link_hashkey], 'stage_new') }} != {{ datavault4dbt.prefix([link_hashkey], 'latest_record') }}
-                OR {{ datavault4dbt.prefix([src_ldts], 'latest_record') }} IS NULL
-
-            {%- endif %}
         ) stage_new
     WHERE rn != 1
 ),
@@ -188,15 +166,11 @@ final_columns_to_select AS
 
     SELECT * FROM deactivated_intermediates
 
-    {% if is_incremental() -%}
+
     UNION ALL
 
     SELECT * FROM deactivated_existing
 
-    UNION ALL
-
-    SELECT * FROM activated_intermediates
-    {%- endif %}
 )
 
 SELECT * FROM final_columns_to_select

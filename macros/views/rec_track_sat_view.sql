@@ -4,6 +4,8 @@
     be built both for Hubs and Links. Typically if a hub is loaded from three sources, the corresponding Record Tracking Satellite would track
     the same three sources, since they apparently share the same business definition. For each source a rsrc_static must be defined, and optionally
     the name of the hashkey column inside that source, if it deviates between sources.
+    This version is meant specially for views that can be used to load tables in one on one mappings. The code is identical with the
+    incremental materialization.
 
     Features:
         - Tracks the appearance of a specific hashkey in one or more staging areas
@@ -73,7 +75,7 @@
     {%- set src_rsrc = datavault4dbt.replace_standard(src_rsrc, 'datavault4dbt.rsrc_alias', 'rsrc') -%}
     {%- set src_stg = datavault4dbt.replace_standard(src_stg, 'datavault4dbt.stg_alias', 'stg') -%}
 
-    {{ return(adapter.dispatch('rec_track_sat', 'datavault4dbt')(tracked_hashkey=tracked_hashkey,
+    {{ return(adapter.dispatch('rec_track_sat_view', 'datavault4dbt')(tracked_hashkey=tracked_hashkey,
                                                                       source_models=source_models,
                                                                       src_ldts=src_ldts,
                                                                       src_rsrc=src_rsrc,

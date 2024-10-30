@@ -10,8 +10,9 @@
     {% set ns.hdiff_alias = src_hashdiff["alias"] %}
 {% else %}
     {% set ns.src_hashdiff = src_hashdiff %}
-    {% set ns.hdiff_alias = src_hashdiff  %}
+    {% set ns.hdiff_alias = var('datavault4dbt.hdiff_alias', 'HDIFF')  %}
 {%- endif -%}
+
 
 {%- set source_cols = datavault4dbt.expand_column_list(columns=[src_rsrc, src_ldts, src_ma_key, src_payload]) -%}
 
@@ -48,7 +49,7 @@ latest_entries_in_sat AS (
         {{ ns.hdiff_alias }}
     FROM (
         SELECT
-            ROW_NUMBER() OVER(PARTITION BY {{ parent_hashkey|lower }} ORDER BY {{ src_ldts }} DESC) AS latest,
+            RANK() OVER(PARTITION BY {{ parent_hashkey|lower }} ORDER BY {{ src_ldts }} DESC) AS latest,
             {{ parent_hashkey }},
             {{ ns.hdiff_alias }}
         FROM
@@ -88,7 +89,21 @@ deduped_rows AS (
     AND {{ datavault4dbt.multikey(ns.hdiff_alias, prefix=['source_data', 'deduped_row_hashdiff'], condition='=') }}
 
 ),
+{# Create list of hash keys that have modified rows #}
+{%- if is_incremental() %}
+modified_rows AS (
 
+    SELECT
+        deduped_rows.{{ parent_hashkey }}
+    FROM deduped_rows
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM latest_entries_in_sat
+        WHERE {{ datavault4dbt.multikey(parent_hashkey, prefix=['latest_entries_in_sat', 'deduped_rows'], condition='=') }}
+          AND {{ datavault4dbt.multikey(ns.hdiff_alias, prefix=['latest_entries_in_sat', 'deduped_rows'], condition='=') }}
+            )
+),
+{%- endif %}
 records_to_insert AS (
 
     SELECT
@@ -97,12 +112,11 @@ records_to_insert AS (
         {{ datavault4dbt.alias_all(columns=source_cols, prefix='deduped_rows') }}
     FROM deduped_rows
     {%- if is_incremental() %}
-    WHERE NOT EXISTS (
-        SELECT 1
-        FROM latest_entries_in_sat
-        WHERE {{ datavault4dbt.multikey(parent_hashkey, prefix=['latest_entries_in_sat', 'deduped_rows'], condition='=') }}
-            AND {{ datavault4dbt.multikey(ns.hdiff_alias, prefix=['latest_entries_in_sat', 'deduped_rows'], condition='=') }} 
-            )
+    WHERE EXISTS (
+                    SELECT 1
+                    FROM modified_rows
+                    WHERE {{ datavault4dbt.multikey(parent_hashkey, prefix=['modified_rows', 'deduped_rows'], condition='=') }}
+                  )
     {%- endif %}
 
     )

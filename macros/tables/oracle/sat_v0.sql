@@ -11,11 +11,10 @@
     {% set ns.hdiff_alias = src_hashdiff["alias"] %}
 {% else %}
     {% set ns.src_hashdiff = src_hashdiff %}
-    {% set ns.hdiff_alias = src_hashdiff  %}
+    {% set ns.hdiff_alias = var('datavault4dbt.hdiff_alias', 'HDIFF')  %}
 {%- endif -%}
 
 
-{%- set ns.hdiff_alias = var('datavault4dbt.hdiff_alias', 'HDIFF') -%}
 
 {%- set source_cols = datavault4dbt.expand_column_list(columns=[src_rsrc, src_ldts, src_payload]) -%}
 

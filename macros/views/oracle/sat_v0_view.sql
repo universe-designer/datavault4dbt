@@ -14,6 +14,9 @@
     {% set ns.hdiff_alias = src_hashdiff  %}
 {%- endif -%}
 
+
+{%- set ns.hdiff_alias = var('datavault4dbt.hdiff_alias', 'HDIFF') -%}
+
 {%- set source_cols = datavault4dbt.expand_column_list(columns=[src_rsrc, src_ldts, src_payload]) -%}
 
 {%- set source_relation = ref(source_model) -%}
@@ -38,7 +41,7 @@ source_data AS (
         WHERE {{ src_ldts }} != {{ datavault4dbt.string_to_timestamp(timestamp_format, end_of_all_times) }}
     )
     OR  NVL((SELECT COUNT(*)
-             FROM {{ source_relation }} ),0) = 0
+             FROM {{ this | replace("_VI","") }} ),0) = 0
 
 ),
 
