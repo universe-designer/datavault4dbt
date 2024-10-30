@@ -26,7 +26,7 @@ clean-targets:         # directories to be removed by `dbt clean`
 vars:
   #Column Aliases
   datavault4dbt.ldts_alias: 'ldts'
-  datavault4dbt.rsrc_alias: 'CDWH_RECORD_SOURCE'
+  datavault4dbt.rsrc_alias: 'DWH_RECORD_SOURCE'
   datavault4dbt.ledts_alias: 'VALID_TO_TS'
   datavault4dbt.snapshot_trigger_column: 'is_active'
   datavault4dbt.sdts_alias: 'sdts'
