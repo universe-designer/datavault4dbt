@@ -7,6 +7,7 @@
 
 {%- set source_relation = ref(sat_v0) -%}
 {%- set all_columns = datavault4dbt.source_columns(source_relation=source_relation) -%}
+{%- set hashdiff = var('datavault4dbt.hdiff_alias', 'HDIFF') -%}
 {%- set exclude = datavault4dbt.expand_column_list(columns=[hashkey, hashdiff, ma_attribute, src_ldts, src_rsrc]) -%}
 {%- set ma_attributes = datavault4dbt.expand_column_list(columns=[ma_attribute]) -%}
 

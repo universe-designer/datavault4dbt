@@ -59,7 +59,17 @@ Currently supported platforms are:
 * Snowflake
 * PostgreSQL
 * Amazon Redshift
-* Oracle (limited)
+* Oracle with advanced features
+  * Link Effectivity Sattellites
+  * Load Views for 1:1-Mappings in ETL-Tools such as Oracle Data Integrator
+  * Read Views for Version 1 Satellites
+  * Primary Keys
+  * Foreign Keys
+  * Table Comments
+  * Column Comments
+  * Index Tablespace Modification
+  * Partitioning
+  * Helpful SQL generators to create, select, drop, delete, grant models
 
 We are working continuously at high pressure to adapt the package for large variety of different platforms. In the future, the package will hopefully be available for SQL Server and many more.
 

@@ -1,4 +1,4 @@
-{%- macro oracle__sat_v0(parent_hashkey, src_hashdiff, src_payload, src_ldts, src_rsrc, source_model) -%}
+{%- macro oracle__sat_v0_view(parent_hashkey, src_hashdiff, src_payload, src_ldts, src_rsrc, source_model) -%}
 
 {%- set beginning_of_all_times = datavault4dbt.beginning_of_all_times() -%}
 {%- set end_of_all_times = datavault4dbt.end_of_all_times() -%}
@@ -11,13 +11,13 @@
     {% set ns.hdiff_alias = src_hashdiff["alias"] %}
 {% else %}
     {% set ns.src_hashdiff = src_hashdiff %}
-    {% set ns.hdiff_alias = var('datavault4dbt.hdiff_alias', 'HDIFF')  %}
+    {% set ns.hdiff_alias = src_hashdiff  %}
 {%- endif -%}
 
 
+{%- set ns.hdiff_alias = var('datavault4dbt.hdiff_alias', 'HDIFF') -%}
 
 {%- set source_cols = datavault4dbt.expand_column_list(columns=[src_rsrc, src_ldts, src_payload]) -%}
-
 
 {%- set source_relation = ref(source_model) -%}
 
@@ -34,17 +34,19 @@ source_data AS (
         {{ datavault4dbt.print_list(source_cols) }}
     FROM {{ source_relation }}
 
-    {%- if is_incremental() %}
+
     WHERE {{ src_ldts }} > (
         SELECT
-            MAX({{ src_ldts }}) FROM {{ this }}
+            MAX({{ src_ldts }}) FROM {{ this | replace("_VI","") }}
         WHERE {{ src_ldts }} != {{ datavault4dbt.string_to_timestamp(timestamp_format, end_of_all_times) }}
     )
-    {%- endif %}
+    OR  NVL((SELECT COUNT(*)
+             FROM {{ this | replace("_VI","") }} ),0) = 0
+
 ),
 
 {# Get the latest record for each parent hashkey in existing sat, if incremental. #}
-{%- if is_incremental() %}
+
 latest_entries_in_sat AS (
     SELECT *
     FROM (
@@ -53,12 +55,12 @@ latest_entries_in_sat AS (
                 ROW_NUMBER() OVER(PARTITION BY {{ parent_hashkey|lower }} ORDER BY {{ src_ldts }} DESC) AS latest,
                 {{ ns.hdiff_alias }}
             FROM
-                {{ this }}
+                {{ this | replace("_VI","") }}
 
          )
     WHERE latest = 1
 ),
-{%- endif %}
+
 {# 
     Deduplicate source by comparing each hashdiff to the hashdiff of the previous record, for each hashkey. 
 #}
@@ -86,9 +88,7 @@ deduplicated_numbered_source AS (
         {{ parent_hashkey }},
         {{ ns.hdiff_alias }},
         {{ datavault4dbt.print_list(source_cols) }}
-    {% if is_incremental() -%}
     , ROW_NUMBER() OVER(PARTITION BY {{ parent_hashkey }} ORDER BY {{ src_ldts }}) as rn
-    {%- endif %}
     FROM deduplicate_qualify
 ),
 {#
@@ -102,14 +102,12 @@ records_to_insert AS (
     {{ ns.hdiff_alias }},
     {{ datavault4dbt.print_list(source_cols) }}
     FROM deduplicated_numbered_source
-    {%- if is_incremental() %}
     WHERE NOT EXISTS (
         SELECT 1
         FROM latest_entries_in_sat
         WHERE {{ datavault4dbt.multikey(parent_hashkey, prefix=['latest_entries_in_sat', 'deduplicated_numbered_source'], condition='=') }}
             AND {{ datavault4dbt.multikey(ns.hdiff_alias, prefix=['latest_entries_in_sat', 'deduplicated_numbered_source'], condition='=') }}
             AND deduplicated_numbered_source.rn = 1)
-    {%- endif %}
 
     )
 
