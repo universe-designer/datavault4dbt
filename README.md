@@ -5,6 +5,24 @@
 
 ---
 
+## What is special about this Fork?
+This fork was created for an Oracle specific environment, where Turbovault4dbt and Datavault4dbt were used as code generators for tables and views. Load operations were carried out in a third party ETL tool, where simple 1:1 mappings between Views and tables were created. Please see this [blog post](https://danielfritzler.de/data-vault-mit-odi.html) for details.
+Besides the Oracle compatibility it offers advanced features for Oracle such as
+  * Link Effectivity Sattellites
+  * Load Views for 1:1-Mappings in ETL-Tools such as Oracle Data Integrator
+  * Read Views for Version 1 Satellites
+  * Primary Keys
+  * Foreign Keys
+  * Table Comments
+  * Column Comments
+  * Index Tablespace Modification
+  * Partitioning
+  * Helpful SQL generators to create, select, drop, delete, grant models
+
+This fork can be used together with this [turbovault4dbt fork](https://github.com/universe-designer/turbovault4dbt).
+If you use Windows, use [dv-starter](https://github.com/universe-designer/dv-starter/tree/main) to install and preconfigure Turbovault4dbt and Datavault4dbt easily.
+ 
+
 ### Included Macros
 - Staging Area (For Hashing, prejoins and ghost records)
 - Hubs, Links & Satellites (allowing multiple deltas)
